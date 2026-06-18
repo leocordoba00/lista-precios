@@ -370,8 +370,6 @@
         <th class="blue-header" style="width:110px">Revendedor</th>
         <th class="purple-header" style="width:60px">%</th>
         <th class="purple-header" style="width:110px">Local Físico</th>
-        <th class="accent-header" style="width:60px">%</th>
-        <th class="accent-header" style="width:110px">Precio Socio</th>
         <th style="width:70px"></th>
       </tr>
     </thead>
@@ -466,7 +464,7 @@ function buildRow(row) {
 
   const plRev = calcPrecio(row.precio_costo, row.porcentaje_revendedor);
   const plLoc = calcPrecio(row.precio_costo, row.porcentaje_local);
-  const plLib = calcPrecio(row.precio_costo, row.porcentaje_libre);
+
 
   tr.innerHTML = `
     <td><input class="cell-input num-input" data-field="cantidad" value="${row.cantidad ?? ''}" placeholder="—"></td>
@@ -487,13 +485,6 @@ function buildRow(row) {
       <span class="result-display ${plLoc !== null ? 'purple' : 'empty'}" data-result="precio_local_fisico">${plLoc !== null ? formatPeso(plLoc) : '—'}</span>
     </td>
 
-    <td class="accent-group">
-      <input class="pct-input accent" data-field="porcentaje_libre" value="${row.porcentaje_libre ?? ''}" placeholder="0">
-    </td>
-    <td class="accent-group">
-      <span class="result-display ${plLib !== null ? 'accent' : 'empty'}" data-result="precio_libre">${plLib !== null ? formatPeso(plLib) : '—'}</span>
-    </td>
-
     <td>
       <div class="row-actions">
         <button class="btn-icon save" title="Guardar" onclick="saveRow(${row.id}, this)">✓</button>
@@ -505,7 +496,7 @@ function buildRow(row) {
   const costoInput = tr.querySelector('[data-field="precio_costo"]');
   makeCalcGroup(tr, costoInput, 'porcentaje_revendedor', 'precio_revendedor', 'blue');
   makeCalcGroup(tr, costoInput, 'porcentaje_local', 'precio_local_fisico', 'purple');
-  makeCalcGroup(tr, costoInput, 'porcentaje_libre', 'precio_libre', 'accent');
+
 
   tr.querySelectorAll('input').forEach(inp => {
     inp.addEventListener('keydown', e => {
