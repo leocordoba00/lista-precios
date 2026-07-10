@@ -682,30 +682,7 @@
   <button class="btn" onclick="loadData()">↺ Recargar</button>
   <button class="btn caja-btn" onclick="toggleCaja()">$ Caja</button>
   <input class="search-input" id="search-input" type="text" placeholder="Buscar producto..." oninput="filterTable(this.value)">
-</div>
-
-<div class="table-wrapper">
-  <table>
-    <thead>
-      <tr>
-        <th style="width:30px"></th>
-        <th style="width:65px">Cant.</th>
-        <th>Producto</th>
-        <th style="width:100px">P. Costo</th>
-        <th class="blue-header" style="width:60px">%</th>
-        <th class="blue-header" style="width:110px">Revendedor</th>
-        <th class="purple-header" style="width:60px">%</th>
-        <th class="purple-header" style="width:110px">Local Físico</th>
-        <th style="width:110px"></th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
-  <div id="empty-state">
-    Sin productos aún
-    <p>Hacé clic en "+ Nueva fila" para empezar</p>
-  </div>
-<!-- Caja panel (aparece arriba de la tabla) -->
+<!-- Caja panel -->
 <div id="caja-panel">
   <div class="caja-header">
     <span class="caja-title">Caja</span>
@@ -755,6 +732,29 @@
       <tbody id="ventas-tbody"></tbody>
     </table>
     <div id="caja-empty" style="display:none">Sin ventas registradas</div>
+  </div>
+</div>
+
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30px"></th>
+        <th style="width:65px">Cant.</th>
+        <th>Producto</th>
+        <th style="width:100px">P. Costo</th>
+        <th class="blue-header" style="width:60px">%</th>
+        <th class="blue-header" style="width:110px">Revendedor</th>
+        <th class="purple-header" style="width:60px">%</th>
+        <th class="purple-header" style="width:110px">Local Físico</th>
+        <th style="width:110px"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="empty-state">
+    Sin productos aún
+    <p>Hacé clic en "+ Nueva fila" para empezar</p>
   </div>
 </div>
 
