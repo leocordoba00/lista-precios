@@ -561,6 +561,93 @@
     font-size: 13px;
   }
 
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: -1px;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-section { display: none; }
+  .tab-section.active { display: block; }
+
+  /* Lista de precios venta */
+  .lp-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px;
+  }
+
+  .lp-table thead th {
+    background: var(--surface2);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .lp-table thead th.price-header {
+    background: var(--accent-dim2);
+    color: var(--accent);
+    border-left: 1px solid var(--border);
+    text-align: right;
+  }
+
+  .lp-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  .lp-table tbody tr:last-child { border-bottom: none; }
+  .lp-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  .lp-table td { padding: 6px 8px; vertical-align: middle; }
+  .lp-table td.price-cell {
+    background: var(--accent-dim2);
+    border-left: 1px solid var(--border);
+  }
+
+  .lp-input {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 5px 8px;
+    text-align: right;
+    outline: none;
+    transition: all 0.15s;
+  }
+
+  .lp-input:hover { border-color: var(--border); background: var(--surface); }
+  .lp-input:focus { border-color: var(--border-hover); background: var(--surface2); }
+  .lp-input.text { text-align: left; font-family: 'Inter', sans-serif; min-width: 180px; }
+
   footer {
     margin-top: 20px;
     font-size: 11px;
@@ -581,6 +668,14 @@
   <div id="status-dot" class="loading"></div>
   <span id="status-text">Conectando...</span>
 </div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('stock')">Stock</button>
+  <button class="tab-btn" onclick="switchTab('precios')">Lista de Precios</button>
+</div>
+
+<!-- TAB: STOCK -->
+<div id="tab-stock" class="tab-section active">
 
 <div class="toolbar">
   <button class="btn primary" onclick="addRow()">+ Nueva fila</button>
@@ -611,6 +706,36 @@
     <p>Hacé clic en "+ Nueva fila" para empezar</p>
   </div>
 </div>
+
+</div><!-- /tab-stock -->
+
+<!-- TAB: LISTA DE PRECIOS -->
+<div id="tab-precios" class="tab-section">
+<div class="toolbar">
+  <button class="btn primary" onclick="addLpRow()">+ Nueva fila</button>
+  <button class="btn" onclick="loadLpData()">↺ Recargar</button>
+  <input class="search-input" type="text" placeholder="Buscar producto..." oninput="filterLpTable(this.value)">
+</div>
+<div class="table-wrapper">
+  <table class="lp-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th style="width:110px">P. Costo</th>
+        <th class="price-header" style="width:120px">x1U</th>
+        <th class="price-header" style="width:120px">x3U</th>
+        <th class="price-header" style="width:120px">x10U</th>
+        <th style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody id="lp-tbody"></tbody>
+  </table>
+  <div id="lp-empty-state" style="padding:60px;text-align:center;color:var(--text-muted);font-size:13px;display:none">
+    Sin productos aún
+    <p style="margin-top:8px;font-size:12px;color:#444">Hacé clic en "+ Nueva fila" para empezar</p>
+  </div>
+</div>
+</div><!-- /tab-precios -->
 
 <!-- Caja panel -->
 <div id="caja-panel">
@@ -1090,6 +1215,118 @@ async function anularVenta(ventaId, productoId, cantidad) {
     loadCaja();
   } catch(e) {
     setStatus('error', 'Error al anular: ' + e.message);
+  }
+}
+
+// --- Tabs ---
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'stock') || (i === 1 && tab === 'precios'));
+  });
+  document.getElementById('tab-stock').classList.toggle('active', tab === 'stock');
+  document.getElementById('tab-precios').classList.toggle('active', tab === 'precios');
+  if (tab === 'precios' && document.getElementById('lp-tbody').children.length === 0) loadLpData();
+}
+
+// --- Lista de Precios Venta ---
+const LP_TABLE = 'lista_precios_venta';
+
+async function loadLpData() {
+  setStatus('loading', 'Cargando...');
+  try {
+    const rows = await api('GET', `${LP_TABLE}?order=id.asc`);
+    renderLpTable(rows);
+    setStatus('ok', `${rows.length} producto${rows.length !== 1 ? 's' : ''}`);
+  } catch(e) {
+    setStatus('error', 'Error: ' + e.message);
+  }
+}
+
+function buildLpRow(row) {
+  const tr = document.createElement('tr');
+  tr.dataset.id = row.id;
+  tr.innerHTML = `
+    <td><input class="lp-input text" data-field="producto" value="${row.producto ?? ''}" placeholder="Nombre del producto"></td>
+    <td><input class="lp-input" data-field="precio_costo" value="${row.precio_costo ?? ''}" placeholder="0"></td>
+    <td class="price-cell"><input class="lp-input" data-field="precio_x1" value="${row.precio_x1 ?? ''}" placeholder="0"></td>
+    <td class="price-cell"><input class="lp-input" data-field="precio_x3" value="${row.precio_x3 ?? ''}" placeholder="0"></td>
+    <td class="price-cell"><input class="lp-input" data-field="precio_x10" value="${row.precio_x10 ?? ''}" placeholder="0"></td>
+    <td>
+      <div class="row-actions">
+        <button class="btn-icon save" title="Guardar" onclick="saveLpRow(${row.id}, this)">✓</button>
+        <button class="btn-icon delete" title="Eliminar" onclick="deleteLpRow(${row.id}, this)">✕</button>
+      </div>
+    </td>
+  `;
+  tr.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') saveLpRow(row.id, tr.querySelector('.btn-icon.save'));
+    });
+  });
+  return tr;
+}
+
+function renderLpTable(rows) {
+  const tbody = document.getElementById('lp-tbody');
+  const empty = document.getElementById('lp-empty-state');
+  tbody.innerHTML = '';
+  if (!rows || rows.length === 0) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  rows.forEach(row => tbody.appendChild(buildLpRow(row)));
+}
+
+function filterLpTable(q) {
+  const term = q.toLowerCase().trim();
+  document.querySelectorAll('#lp-tbody tr').forEach(tr => {
+    const producto = tr.querySelector('[data-field="producto"]')?.value?.toLowerCase() || '';
+    tr.style.display = producto.includes(term) ? '' : 'none';
+  });
+}
+
+async function saveLpRow(id, btn) {
+  btn.classList.add('saving'); btn.textContent = '…';
+  const tr = document.querySelector(`#lp-tbody tr[data-id="${id}"]`);
+  const data = {};
+  tr.querySelectorAll('[data-field]').forEach(inp => {
+    const key = inp.dataset.field;
+    const val = inp.value.trim();
+    data[key] = key === 'producto' ? (val || null) : (val === '' ? null : parseInt(val));
+  });
+  try {
+    await api('PATCH', `${LP_TABLE}?id=eq.${id}`, data);
+    btn.classList.remove('saving'); btn.textContent = '✓';
+    setStatus('ok', 'Guardado');
+  } catch(e) {
+    btn.classList.remove('saving'); btn.textContent = '✓';
+    setStatus('error', 'Error al guardar: ' + e.message);
+  }
+}
+
+async function addLpRow() {
+  setStatus('loading', 'Creando fila...');
+  try {
+    const result = await api('POST', LP_TABLE, { producto: null, precio_costo: null, precio_x1: null, precio_x3: null, precio_x10: null });
+    const newRow = Array.isArray(result) ? result[0] : result;
+    document.getElementById('lp-empty-state').style.display = 'none';
+    const tbody = document.getElementById('lp-tbody');
+    tbody.appendChild(buildLpRow(newRow));
+    setStatus('ok', 'Fila creada');
+    tbody.lastElementChild?.querySelector('.lp-input.text')?.focus();
+  } catch(e) {
+    setStatus('error', 'Error: ' + e.message);
+  }
+}
+
+async function deleteLpRow(id, btn) {
+  if (!confirm('¿Eliminar esta fila?')) return;
+  try {
+    await api('DELETE', `${LP_TABLE}?id=eq.${id}`);
+    document.querySelector(`#lp-tbody tr[data-id="${id}"]`)?.remove();
+    const tbody = document.getElementById('lp-tbody');
+    if (tbody.children.length === 0) document.getElementById('lp-empty-state').style.display = 'block';
+    setStatus('ok', 'Eliminado');
+  } catch(e) {
+    setStatus('error', 'Error: ' + e.message);
   }
 }
 
