@@ -417,7 +417,7 @@
 
   /* Caja panel */
   #caja-panel {
-    margin-top: 32px;
+    margin-bottom: 32px;
     display: none;
   }
 
@@ -705,39 +705,7 @@
     Sin productos aún
     <p>Hacé clic en "+ Nueva fila" para empezar</p>
   </div>
-</div>
-
-</div><!-- /tab-stock -->
-
-<!-- TAB: LISTA DE PRECIOS -->
-<div id="tab-precios" class="tab-section">
-<div class="toolbar">
-  <button class="btn primary" onclick="addLpRow()">+ Nueva fila</button>
-  <button class="btn" onclick="loadLpData()">↺ Recargar</button>
-  <input class="search-input" type="text" placeholder="Buscar producto..." oninput="filterLpTable(this.value)">
-</div>
-<div class="table-wrapper">
-  <table class="lp-table">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th style="width:110px">P. Costo</th>
-        <th class="price-header" style="width:120px">x1U</th>
-        <th class="price-header" style="width:120px">x3U</th>
-        <th class="price-header" style="width:120px">x10U</th>
-        <th style="width:70px"></th>
-      </tr>
-    </thead>
-    <tbody id="lp-tbody"></tbody>
-  </table>
-  <div id="lp-empty-state" style="padding:60px;text-align:center;color:var(--text-muted);font-size:13px;display:none">
-    Sin productos aún
-    <p style="margin-top:8px;font-size:12px;color:#444">Hacé clic en "+ Nueva fila" para empezar</p>
-  </div>
-</div>
-</div><!-- /tab-precios -->
-
-<!-- Caja panel -->
+<!-- Caja panel (aparece arriba de la tabla) -->
 <div id="caja-panel">
   <div class="caja-header">
     <span class="caja-title">Caja</span>
@@ -781,7 +749,7 @@
           <th style="text-align:right">Cant.</th>
           <th style="text-align:right">P. Unit.</th>
           <th style="text-align:right">Total</th>
-        <th></th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="ventas-tbody"></tbody>
@@ -789,6 +757,36 @@
     <div id="caja-empty" style="display:none">Sin ventas registradas</div>
   </div>
 </div>
+
+</div><!-- /tab-stock -->
+
+<!-- TAB: LISTA DE PRECIOS -->
+<div id="tab-precios" class="tab-section">
+<div class="toolbar">
+  <button class="btn primary" onclick="addLpRow()">+ Nueva fila</button>
+  <button class="btn" onclick="loadLpData()">↺ Recargar</button>
+  <input class="search-input" type="text" placeholder="Buscar producto..." oninput="filterLpTable(this.value)">
+</div>
+<div class="table-wrapper">
+  <table class="lp-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th style="width:110px">P. Costo</th>
+        <th class="price-header" style="width:120px">x1U</th>
+        <th class="price-header" style="width:120px">x3U</th>
+        <th class="price-header" style="width:120px">x10U</th>
+        <th style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody id="lp-tbody"></tbody>
+  </table>
+  <div id="lp-empty-state" style="padding:60px;text-align:center;color:var(--text-muted);font-size:13px;display:none">
+    Sin productos aún
+    <p style="margin-top:8px;font-size:12px;color:#444">Hacé clic en "+ Nueva fila" para empezar</p>
+  </div>
+</div>
+</div><!-- /tab-precios -->
 
 <!-- Modal Venta -->
 <div class="modal-overlay hidden" id="modal-venta">
