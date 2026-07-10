@@ -515,6 +515,19 @@
     border-bottom: 1px solid var(--border);
   }
 
+  .btn-anular {
+    padding: 3px 8px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-anular:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
   .ventas-table tbody tr {
     border-bottom: 1px solid var(--border);
   }
@@ -643,6 +656,7 @@
           <th style="text-align:right">Cant.</th>
           <th style="text-align:right">P. Unit.</th>
           <th style="text-align:right">Total</th>
+        <th></th>
         </tr>
       </thead>
       <tbody id="ventas-tbody"></tbody>
@@ -1055,9 +1069,28 @@ function renderCaja(ventas) {
       <td style="text-align:right;font-family:'JetBrains Mono',monospace">${v.cantidad}</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace">${formatPeso(v.precio_unitario)}</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;color:var(--accent)">${formatPeso(v.precio_total)}</td>
+      <td><button class="btn-anular" onclick="anularVenta(${v.id}, ${v.producto_id}, ${v.cantidad})">Anular</button></td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+async function anularVenta(ventaId, productoId, cantidad) {
+  if (!confirm('¿Anular esta venta? Se devuelve el stock.')) return;
+  try {
+    const rows = await api('GET', `${TABLE}?id=eq.${productoId}`);
+    const stockActual = rows?.[0]?.cantidad ?? 0;
+    await api('PATCH', `${TABLE}?id=eq.${productoId}`, { cantidad: stockActual + cantidad });
+    await api('DELETE', `ventas?id=eq.${ventaId}`);
+
+    const tr = document.querySelector(`tr[data-id="${productoId}"]`);
+    if (tr) tr.querySelector('[data-field="cantidad"]').value = stockActual + cantidad;
+
+    setStatus('ok', 'Venta anulada — stock restaurado');
+    loadCaja();
+  } catch(e) {
+    setStatus('error', 'Error al anular: ' + e.message);
+  }
 }
 
 loadData();
