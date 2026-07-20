@@ -46,8 +46,11 @@
     color: var(--text);
     font-family: 'Inter', sans-serif;
     font-size: 14px;
-    min-height: 100vh;
-    padding: 32px 24px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 24px 0;
   }
 
   header {
@@ -163,7 +166,7 @@
   .table-wrapper {
     overflow-x: auto;
     overflow-y: auto;
-    max-height: calc(100vh - 220px);
+    flex: 1;
     border: 1px solid var(--border);
     border-radius: var(--radius);
   }
@@ -591,8 +594,8 @@
   .tab-btn:hover { color: var(--text); }
   .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-  .tab-section { display: none; }
-  .tab-section.active { display: block; }
+  .tab-section { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .tab-section.active { display: flex; }
 
   /* Lista de precios venta */
   .lp-table {
@@ -687,7 +690,8 @@
   <button class="btn" onclick="loadData()">↺ Recargar</button>
   <button class="btn caja-btn" onclick="toggleCaja()">$ Caja</button>
   <input class="search-input" id="search-input" type="text" placeholder="Buscar producto..." oninput="filterTable(this.value)">
-<!-- Caja panel -->
+</div>
+
 <div id="caja-panel">
   <div class="caja-header">
     <span class="caja-title">Caja</span>
@@ -748,10 +752,10 @@
         <th style="width:65px">Cant.</th>
         <th>Producto</th>
         <th style="width:100px">P. Costo</th>
-        <th class="blue-header" style="width:60px">%</th>
-        <th class="blue-header" style="width:110px">Revendedor</th>
         <th class="purple-header" style="width:60px">%</th>
         <th class="purple-header" style="width:110px">Local Físico</th>
+        <th class="accent-header" style="width:110px">Precio x3</th>
+        <th class="accent-header" style="width:110px">Precio x10</th>
         <th style="width:110px"></th>
       </tr>
     </thead>
@@ -920,7 +924,6 @@ function buildRow(row) {
   const colorActual = row.color || 'none';
   if (colorActual !== 'none') tr.classList.add('color-' + colorActual);
 
-  const plRev = calcPrecio(row.precio_costo, row.porcentaje_revendedor);
   const plLoc = calcPrecio(row.precio_costo, row.porcentaje_local);
 
   const colorDots = COLORES.map(c =>
@@ -935,18 +938,18 @@ function buildRow(row) {
     <td><input class="cell-input producto-input" data-field="producto" value="${row.producto ?? ''}" placeholder="Nombre del producto"></td>
     <td><input class="cell-input num-input" data-field="precio_costo" value="${row.precio_costo ?? ''}" placeholder="0"></td>
 
-    <td class="blue-group">
-      <input class="pct-input blue" data-field="porcentaje_revendedor" value="${row.porcentaje_revendedor ?? ''}" placeholder="0">
-    </td>
-    <td class="blue-group">
-      <span class="result-display ${plRev !== null ? 'blue' : 'empty'}" data-result="precio_revendedor">${plRev !== null ? formatPeso(plRev) : '—'}</span>
-    </td>
-
     <td class="purple-group">
       <input class="pct-input purple" data-field="porcentaje_local" value="${row.porcentaje_local ?? ''}" placeholder="0">
     </td>
     <td class="purple-group">
       <span class="result-display ${plLoc !== null ? 'purple' : 'empty'}" data-result="precio_local_fisico">${plLoc !== null ? formatPeso(plLoc) : '—'}</span>
+    </td>
+
+    <td class="accent-group">
+      <input class="cell-input num-input" data-field="precio_x3" value="${row.precio_x3 ?? ''}" placeholder="0">
+    </td>
+    <td class="accent-group">
+      <input class="cell-input num-input" data-field="precio_x10" value="${row.precio_x10 ?? ''}" placeholder="0">
     </td>
 
     <td>
@@ -959,7 +962,6 @@ function buildRow(row) {
   `;
 
   const costoInput = tr.querySelector('[data-field="precio_costo"]');
-  makeCalcGroup(tr, costoInput, 'porcentaje_revendedor', 'precio_revendedor', 'blue');
   makeCalcGroup(tr, costoInput, 'porcentaje_local', 'precio_local_fisico', 'purple');
 
   tr.querySelectorAll('input').forEach(inp => {
@@ -1004,10 +1006,9 @@ function getRowData(id) {
   tr.querySelectorAll('[data-field]').forEach(inp => {
     const key = inp.dataset.field;
     const val = inp.value.trim();
-    const numFields = ['cantidad','precio_costo','porcentaje_revendedor','porcentaje_local'];
+    const numFields = ['cantidad','precio_costo','porcentaje_local','precio_x3','precio_x10'];
     data[key] = numFields.includes(key) ? (val === '' ? null : parseInt(val)) : (val === '' ? null : val);
   });
-  data.precio_revendedor = calcPrecio(data.precio_costo, data.porcentaje_revendedor);
   data.precio_local_fisico = calcPrecio(data.precio_costo, data.porcentaje_local);
   return data;
 }
@@ -1033,9 +1034,8 @@ async function addRow() {
   try {
     const result = await api('POST', TABLE, {
       cantidad: null, producto: null, precio_costo: null,
-      porcentaje_revendedor: null, precio_revendedor: null,
       porcentaje_local: null, precio_local_fisico: null,
-      color: null
+      precio_x3: null, precio_x10: null, color: null
     });
     const newRow = Array.isArray(result) ? result[0] : result;
     document.getElementById('empty-state').style.display = 'none';
