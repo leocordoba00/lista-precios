@@ -659,6 +659,22 @@
   .lp-input:focus { border-color: var(--border-hover); background: var(--surface2); }
   .lp-input.text { text-align: left; font-family: 'Inter', sans-serif; min-width: 180px; }
 
+  .cat-select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 5px 6px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .cat-select:focus { border-color: var(--border-hover); color: var(--text); }
+  .cat-select option { background: var(--surface2); }
+
   footer {
     margin-top: 20px;
     font-size: 11px;
@@ -692,6 +708,13 @@
   <button class="btn primary" onclick="addRow()">+ Nueva fila</button>
   <button class="btn" onclick="loadData()">↺ Recargar</button>
   <button class="btn caja-btn" onclick="toggleCaja()">$ Caja</button>
+  <select class="search-input" id="filter-cat-stock" style="max-width:180px;flex:none" onchange="filterTable(document.getElementById('search-input').value)">
+    <option value="">Todas las categorías</option>
+    <option value="Perfumes Diseñador">Perfumes Diseñador</option>
+    <option value="Perfumes Árabes">Perfumes Árabes</option>
+    <option value="Productos Tendencia">Productos Tendencia</option>
+    <option value="Varios">Varios</option>
+  </select>
   <input class="search-input" id="search-input" type="text" placeholder="Buscar producto..." oninput="filterTable(this.value)">
 </div>
 
@@ -754,6 +777,7 @@
         <th style="width:30px"></th>
         <th style="width:65px">Cant.</th>
         <th>Producto</th>
+        <th style="width:130px">Categoría</th>
         <th style="width:100px">P. Costo</th>
         <th class="purple-header" style="width:60px">%</th>
         <th class="purple-header" style="width:110px">Local Físico</th>
@@ -777,13 +801,21 @@
 <div class="toolbar">
   <button class="btn primary" onclick="addLpRow()">+ Nueva fila</button>
   <button class="btn" onclick="loadLpData()">↺ Recargar</button>
-  <input class="search-input" type="text" placeholder="Buscar producto..." oninput="filterLpTable(this.value)">
+  <select class="search-input" id="filter-cat-lp" style="max-width:180px;flex:none" onchange="filterLpTable(document.getElementById('search-lp').value)">
+    <option value="">Todas las categorías</option>
+    <option value="Perfumes Diseñador">Perfumes Diseñador</option>
+    <option value="Perfumes Árabes">Perfumes Árabes</option>
+    <option value="Productos Tendencia">Productos Tendencia</option>
+    <option value="Varios">Varios</option>
+  </select>
+  <input class="search-input" id="search-lp" type="text" placeholder="Buscar producto..." oninput="filterLpTable(this.value)">
 </div>
 <div class="table-wrapper">
   <table class="lp-table">
     <thead>
       <tr>
         <th>Producto</th>
+        <th style="width:130px">Categoría</th>
         <th style="width:110px">P. Costo</th>
         <th class="price-header" style="width:120px">x1U</th>
         <th class="price-header" style="width:120px">x3U</th>
@@ -907,9 +939,13 @@ function formatPeso(n) {
 
 function filterTable(q) {
   const term = q.toLowerCase().trim();
+  const cat = document.getElementById('filter-cat-stock')?.value || '';
   document.querySelectorAll('#tbody tr').forEach(tr => {
     const producto = tr.querySelector('[data-field="producto"]')?.value?.toLowerCase() || '';
-    tr.style.display = producto.includes(term) ? '' : 'none';
+    const categoria = tr.querySelector('[data-field="categoria"]')?.value || '';
+    const matchTerm = producto.includes(term);
+    const matchCat = !cat || categoria === cat;
+    tr.style.display = matchTerm && matchCat ? '' : 'none';
   });
 }
 
@@ -959,6 +995,15 @@ function buildRow(row) {
     </td>
     <td><input class="cell-input num-input" data-field="cantidad" value="${row.cantidad ?? ''}" placeholder="—"></td>
     <td><input class="cell-input producto-input" data-field="producto" value="${row.producto ?? ''}" placeholder="Nombre del producto"></td>
+    <td>
+      <select class="cat-select" data-field="categoria">
+        <option value="">—</option>
+        <option value="Perfumes Diseñador" ${row.categoria === 'Perfumes Diseñador' ? 'selected' : ''}>Perfumes Diseñador</option>
+        <option value="Perfumes Árabes" ${row.categoria === 'Perfumes Árabes' ? 'selected' : ''}>Perfumes Árabes</option>
+        <option value="Productos Tendencia" ${row.categoria === 'Productos Tendencia' ? 'selected' : ''}>Productos Tendencia</option>
+        <option value="Varios" ${row.categoria === 'Varios' ? 'selected' : ''}>Varios</option>
+      </select>
+    </td>
     <td><input class="cell-input num-input" data-field="precio_costo" value="${row.precio_costo ?? ''}" placeholder="0"></td>
 
     <td class="purple-group">
@@ -1249,22 +1294,28 @@ async function confirmarAgregarStock() {
   if (!stockModalId) return;
   const tr = document.querySelector(`#lp-tbody tr[data-id="${stockModalId}"]`);
   const nombre = tr?.querySelector('[data-field="producto"]')?.value || '';
+  const categoria = tr?.querySelector('[data-field="categoria"]')?.value || null;
   const cantidad = parseInt(document.getElementById('stock-cantidad').value) || 0;
   const costo = parseInt(document.getElementById('stock-costo').value) || null;
   if (cantidad <= 0) { alert('La cantidad debe ser mayor a 0'); return; }
   try {
-    await api('POST', TABLE, {
-      producto: nombre,
-      cantidad,
-      precio_costo: costo,
-      porcentaje_local: null,
-      precio_local_fisico: null,
-      precio_x3: null,
-      precio_x10: null,
-      color: null
-    });
+    const existing = await api('GET', `${TABLE}?producto=eq.${encodeURIComponent(nombre)}&limit=1`);
+    if (existing && existing.length > 0) {
+      const row = existing[0];
+      const nuevoStock = (row.cantidad || 0) + cantidad;
+      await api('PATCH', `${TABLE}?id=eq.${row.id}`, { cantidad: nuevoStock, precio_costo: costo || row.precio_costo });
+      const stockTr = document.querySelector(`#tbody tr[data-id="${row.id}"]`);
+      if (stockTr) stockTr.querySelector('[data-field="cantidad"]').value = nuevoStock;
+      setStatus('ok', `"${nombre}" — stock actualizado a ${nuevoStock}`);
+    } else {
+      await api('POST', TABLE, {
+        producto: nombre, cantidad, precio_costo: costo,
+        porcentaje_local: null, precio_local_fisico: null,
+        precio_x3: null, precio_x10: null, color: null, categoria
+      });
+      setStatus('ok', `"${nombre}" agregado al stock`);
+    }
     closeStockModal();
-    setStatus('ok', `"${nombre}" agregado al stock`);
   } catch(e) {
     setStatus('error', 'Error al agregar: ' + e.message);
   }
@@ -1317,6 +1368,15 @@ function buildLpRow(row) {
   tr.dataset.id = row.id;
   tr.innerHTML = `
     <td><input class="lp-input text" data-field="producto" value="${row.producto ?? ''}" placeholder="Nombre del producto"></td>
+    <td>
+      <select class="cat-select" data-field="categoria">
+        <option value="">—</option>
+        <option value="Perfumes Diseñador" ${row.categoria === 'Perfumes Diseñador' ? 'selected' : ''}>Perfumes Diseñador</option>
+        <option value="Perfumes Árabes" ${row.categoria === 'Perfumes Árabes' ? 'selected' : ''}>Perfumes Árabes</option>
+        <option value="Productos Tendencia" ${row.categoria === 'Productos Tendencia' ? 'selected' : ''}>Productos Tendencia</option>
+        <option value="Varios" ${row.categoria === 'Varios' ? 'selected' : ''}>Varios</option>
+      </select>
+    </td>
     <td><input class="lp-input" data-field="precio_costo" value="${row.precio_costo ?? ''}" placeholder="0"></td>
     <td class="price-cell"><input class="lp-input" data-field="precio_x1" value="${row.precio_x1 ?? ''}" placeholder="0"></td>
     <td class="price-cell"><input class="lp-input" data-field="precio_x3" value="${row.precio_x3 ?? ''}" placeholder="0"></td>
@@ -1347,10 +1407,14 @@ function renderLpTable(rows) {
 }
 
 function filterLpTable(q) {
-  const term = q.toLowerCase().trim();
+  const term = (q || '').toLowerCase().trim();
+  const cat = document.getElementById('filter-cat-lp')?.value || '';
   document.querySelectorAll('#lp-tbody tr').forEach(tr => {
     const producto = tr.querySelector('[data-field="producto"]')?.value?.toLowerCase() || '';
-    tr.style.display = producto.includes(term) ? '' : 'none';
+    const categoria = tr.querySelector('[data-field="categoria"]')?.value || '';
+    const matchTerm = producto.includes(term);
+    const matchCat = !cat || categoria === cat;
+    tr.style.display = matchTerm && matchCat ? '' : 'none';
   });
 }
 
@@ -1361,7 +1425,8 @@ async function saveLpRow(id, btn) {
   tr.querySelectorAll('[data-field]').forEach(inp => {
     const key = inp.dataset.field;
     const val = inp.value.trim();
-    data[key] = key === 'producto' ? (val || null) : (val === '' ? null : parseInt(val));
+    const textFields = ['producto', 'categoria'];
+    data[key] = textFields.includes(key) ? (val || null) : (val === '' ? null : parseInt(val));
   });
   try {
     await api('PATCH', `${LP_TABLE}?id=eq.${id}`, data);
