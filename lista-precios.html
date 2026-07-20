@@ -785,7 +785,7 @@
         <th class="price-header" style="width:120px">x1U</th>
         <th class="price-header" style="width:120px">x3U</th>
         <th class="price-header" style="width:120px">x10U</th>
-        <th style="width:70px"></th>
+        <th style="width:100px"></th>
       </tr>
     </thead>
     <tbody id="lp-tbody"></tbody>
@@ -796,6 +796,26 @@
   </div>
 </div>
 </div><!-- /tab-precios -->
+
+<!-- Modal Agregar al Stock -->
+<div class="modal-overlay hidden" id="modal-stock">
+  <div class="modal">
+    <h2>Agregar al Stock</h2>
+    <div class="modal-subtitle" id="modal-stock-nombre"></div>
+    <div class="modal-field">
+      <label>Cantidad</label>
+      <input type="number" id="stock-cantidad" min="1" value="1">
+    </div>
+    <div class="modal-field">
+      <label>Precio Costo</label>
+      <input type="number" id="stock-costo" min="0" placeholder="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeStockModal()">Cancelar</button>
+      <button class="btn primary" onclick="confirmarAgregarStock()">Agregar al Stock</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Venta -->
 <div class="modal-overlay hidden" id="modal-venta">
@@ -1203,6 +1223,50 @@ function renderCaja(ventas) {
   });
 }
 
+let stockModalId = null;
+
+function openStockModal(id) {
+  const tr = document.querySelector(`#lp-tbody tr[data-id="${id}"]`);
+  const nombre = tr?.querySelector('[data-field="producto"]')?.value || '';
+  const costo = tr?.querySelector('[data-field="precio_costo"]')?.value || '';
+  stockModalId = id;
+  document.getElementById('modal-stock-nombre').textContent = nombre;
+  document.getElementById('stock-cantidad').value = 1;
+  document.getElementById('stock-costo').value = costo;
+  document.getElementById('modal-stock').classList.remove('hidden');
+  document.getElementById('stock-cantidad').focus();
+}
+
+function closeStockModal() {
+  document.getElementById('modal-stock').classList.add('hidden');
+  stockModalId = null;
+}
+
+async function confirmarAgregarStock() {
+  if (!stockModalId) return;
+  const tr = document.querySelector(`#lp-tbody tr[data-id="${stockModalId}"]`);
+  const nombre = tr?.querySelector('[data-field="producto"]')?.value || '';
+  const cantidad = parseInt(document.getElementById('stock-cantidad').value) || 0;
+  const costo = parseInt(document.getElementById('stock-costo').value) || null;
+  if (cantidad <= 0) { alert('La cantidad debe ser mayor a 0'); return; }
+  try {
+    await api('POST', TABLE, {
+      producto: nombre,
+      cantidad,
+      precio_costo: costo,
+      porcentaje_local: null,
+      precio_local_fisico: null,
+      precio_x3: null,
+      precio_x10: null,
+      color: null
+    });
+    closeStockModal();
+    setStatus('ok', `"${nombre}" agregado al stock`);
+  } catch(e) {
+    setStatus('error', 'Error al agregar: ' + e.message);
+  }
+}
+
 async function anularVenta(ventaId, productoId, cantidad) {
   if (!confirm('¿Anular esta venta? Se devuelve el stock.')) return;
   try {
@@ -1255,7 +1319,8 @@ function buildLpRow(row) {
     <td class="price-cell"><input class="lp-input" data-field="precio_x3" value="${row.precio_x3 ?? ''}" placeholder="0"></td>
     <td class="price-cell"><input class="lp-input" data-field="precio_x10" value="${row.precio_x10 ?? ''}" placeholder="0"></td>
     <td>
-      <div class="row-actions">
+      <div class="row-actions" style="opacity:1;gap:6px">
+        <button class="btn" style="padding:4px 8px;font-size:11px;color:var(--accent);border-color:var(--accent)" onclick="openStockModal(${row.id})" title="Agregar al stock">+ Stock</button>
         <button class="btn-icon save" title="Guardar" onclick="saveLpRow(${row.id}, this)">✓</button>
         <button class="btn-icon delete" title="Eliminar" onclick="deleteLpRow(${row.id}, this)">✕</button>
       </div>
