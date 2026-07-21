@@ -682,6 +682,29 @@
     font-family: 'JetBrains Mono', monospace;
     text-align: right;
   }
+
+  /* Grupos por categoría */
+  tr.cat-header td {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    cursor: pointer;
+    user-select: none;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  tr.cat-header:hover td { color: var(--text); background: #252525; }
+  .cat-arrow {
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform 0.2s;
+    color: var(--accent);
+  }
+  tr.cat-header.collapsed .cat-arrow { transform: rotate(-90deg); }
 </style>
 </head>
 <body>
@@ -937,15 +960,50 @@ function formatPeso(n) {
 }
 
 function filterTable(q) {
-  const term = q.toLowerCase().trim();
-  const cat = document.getElementById('filter-cat-stock')?.value || '';
-  document.querySelectorAll('#tbody tr').forEach(tr => {
+  const term = (q || '').toLowerCase().trim();
+  const tbody = document.getElementById('tbody');
+  tbody.querySelectorAll('tr:not(.cat-header)').forEach(tr => {
+    const catGroup = tr.dataset.catGroup ?? '';
+    if (collapsedGroups.stock.has(catGroup)) { tr.style.display = 'none'; return; }
     const producto = tr.querySelector('[data-field="producto"]')?.value?.toLowerCase() || '';
-    const categoria = tr.querySelector('[data-field="categoria"]')?.value || '';
-    const matchTerm = producto.includes(term);
-    const matchCat = !cat || categoria === cat;
-    tr.style.display = matchTerm && matchCat ? '' : 'none';
+    tr.style.display = (!term || producto.includes(term)) ? '' : 'none';
   });
+  tbody.querySelectorAll('tr.cat-header').forEach(hdr => {
+    const c = hdr.dataset.cat;
+    const any = [...tbody.querySelectorAll('tr[data-cat-group]')].some(r => r.dataset.catGroup === c && r.style.display !== 'none');
+    hdr.style.display = any ? '' : 'none';
+  });
+}
+
+const CATEGORY_ORDER = ['Perfumes Diseñador', 'Perfumes Árabes', 'Productos Tendencia', 'Varios'];
+const collapsedGroups = { stock: new Set(), lp: new Set() };
+
+function buildCatHeader(cat, colCount, tableKey) {
+  const tr = document.createElement('tr');
+  tr.className = 'cat-header';
+  tr.dataset.cat = cat;
+  const label = cat || 'Sin categoría';
+  tr.innerHTML = `<td colspan="${colCount}"><span class="cat-arrow">▾</span>${label}</td>`;
+  tr.addEventListener('click', () => toggleCatGroup(cat, tableKey));
+  if (collapsedGroups[tableKey].has(cat)) tr.classList.add('collapsed');
+  return tr;
+}
+
+function toggleCatGroup(cat, tableKey) {
+  const tbodyId = tableKey === 'stock' ? 'tbody' : 'lp-tbody';
+  const tbody = document.getElementById(tbodyId);
+  const header = [...tbody.querySelectorAll('tr.cat-header')].find(r => r.dataset.cat === cat);
+  const isCollapsed = collapsedGroups[tableKey].has(cat);
+  const productRows = [...tbody.querySelectorAll('tr[data-cat-group]')].filter(r => r.dataset.catGroup === cat);
+  if (isCollapsed) {
+    collapsedGroups[tableKey].delete(cat);
+    header?.classList.remove('collapsed');
+    productRows.forEach(r => r.style.display = '');
+  } else {
+    collapsedGroups[tableKey].add(cat);
+    header?.classList.add('collapsed');
+    productRows.forEach(r => r.style.display = 'none');
+  }
 }
 
 const COLORES = ['none', 'ana', 'gabi', 'leo', 'esteban'];
@@ -981,8 +1039,6 @@ function buildRow(row) {
 
   const colorActual = row.color || 'none';
   if (colorActual !== 'none') tr.classList.add('color-' + colorActual);
-
-  const plLoc = calcPrecio(row.precio_costo, row.porcentaje_local);
 
   const colorDots = COLORES.map(c =>
     `<span class="color-dot ${c} ${colorActual === c ? 'active' : ''}" data-color="${c}" title="${c === 'none' ? 'Sin color' : SOCIOS_LABEL[c]}" onclick="setColor(${row.id}, '${c}', this)"></span>`
@@ -1057,7 +1113,20 @@ function renderTable(rows) {
   tbody.innerHTML = '';
   if (!rows || rows.length === 0) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
-  rows.forEach(row => tbody.appendChild(buildRow(row)));
+  const groups = {};
+  rows.forEach(row => { const k = row.categoria || ''; if (!groups[k]) groups[k] = []; groups[k].push(row); });
+  const order = [...CATEGORY_ORDER, ...Object.keys(groups).filter(k => !CATEGORY_ORDER.includes(k) && k !== ''), ''];
+  order.forEach(cat => {
+    const groupRows = groups[cat];
+    if (!groupRows || groupRows.length === 0) return;
+    tbody.appendChild(buildCatHeader(cat, 9, 'stock'));
+    groupRows.forEach(row => {
+      const tr = buildRow(row);
+      tr.dataset.catGroup = cat;
+      if (collapsedGroups.stock.has(cat)) tr.style.display = 'none';
+      tbody.appendChild(tr);
+    });
+  });
 }
 
 function getRowData(id) {
@@ -1101,8 +1170,10 @@ async function addRow() {
     document.getElementById('empty-state').style.display = 'none';
     const tbody = document.getElementById('tbody');
     tbody.appendChild(buildRow(newRow));
+    const newTr = tbody.lastElementChild;
+    newTr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     setStatus('ok', 'Fila creada');
-    tbody.lastElementChild?.querySelector('.producto-input')?.focus();
+    newTr?.querySelector('.producto-input')?.focus();
   } catch(e) {
     setStatus('error', 'Error: ' + e.message);
   }
@@ -1196,7 +1267,7 @@ async function confirmarVenta() {
 }
 
 // Cerrar modal con Escape
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeStockModal(); } });
 
 // --- Caja ---
 function toggleCaja() {
@@ -1321,15 +1392,15 @@ async function confirmarAgregarStock() {
 async function anularVenta(ventaId, productoId, cantidad) {
   if (!confirm('¿Anular esta venta? Se devuelve el stock.')) return;
   try {
-    const rows = await api('GET', `${TABLE}?id=eq.${productoId}`);
-    const stockActual = rows?.[0]?.cantidad ?? 0;
-    await api('PATCH', `${TABLE}?id=eq.${productoId}`, { cantidad: stockActual + cantidad });
+    if (productoId) {
+      const rows = await api('GET', `${TABLE}?id=eq.${productoId}`);
+      const stockActual = rows?.[0]?.cantidad ?? 0;
+      await api('PATCH', `${TABLE}?id=eq.${productoId}`, { cantidad: stockActual + cantidad });
+      const tr = document.querySelector(`tr[data-id="${productoId}"]`);
+      if (tr) tr.querySelector('[data-field="cantidad"]').value = stockActual + cantidad;
+    }
     await api('DELETE', `ventas?id=eq.${ventaId}`);
-
-    const tr = document.querySelector(`tr[data-id="${productoId}"]`);
-    if (tr) tr.querySelector('[data-field="cantidad"]').value = stockActual + cantidad;
-
-    setStatus('ok', 'Venta anulada — stock restaurado');
+    setStatus('ok', productoId ? 'Venta anulada — stock restaurado' : 'Venta anulada');
     loadCaja();
   } catch(e) {
     setStatus('error', 'Error al anular: ' + e.message);
@@ -1400,18 +1471,35 @@ function renderLpTable(rows) {
   tbody.innerHTML = '';
   if (!rows || rows.length === 0) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
-  rows.forEach(row => tbody.appendChild(buildLpRow(row)));
+  const groups = {};
+  rows.forEach(row => { const k = row.categoria || ''; if (!groups[k]) groups[k] = []; groups[k].push(row); });
+  const order = [...CATEGORY_ORDER, ...Object.keys(groups).filter(k => !CATEGORY_ORDER.includes(k) && k !== ''), ''];
+  order.forEach(cat => {
+    const groupRows = groups[cat];
+    if (!groupRows || groupRows.length === 0) return;
+    tbody.appendChild(buildCatHeader(cat, 7, 'lp'));
+    groupRows.forEach(row => {
+      const tr = buildLpRow(row);
+      tr.dataset.catGroup = cat;
+      if (collapsedGroups.lp.has(cat)) tr.style.display = 'none';
+      tbody.appendChild(tr);
+    });
+  });
 }
 
 function filterLpTable(q) {
   const term = (q || '').toLowerCase().trim();
-  const cat = document.getElementById('filter-cat-lp')?.value || '';
-  document.querySelectorAll('#lp-tbody tr').forEach(tr => {
+  const tbody = document.getElementById('lp-tbody');
+  tbody.querySelectorAll('tr:not(.cat-header)').forEach(tr => {
+    const catGroup = tr.dataset.catGroup ?? '';
+    if (collapsedGroups.lp.has(catGroup)) { tr.style.display = 'none'; return; }
     const producto = tr.querySelector('[data-field="producto"]')?.value?.toLowerCase() || '';
-    const categoria = tr.querySelector('[data-field="categoria"]')?.value || '';
-    const matchTerm = producto.includes(term);
-    const matchCat = !cat || categoria === cat;
-    tr.style.display = matchTerm && matchCat ? '' : 'none';
+    tr.style.display = (!term || producto.includes(term)) ? '' : 'none';
+  });
+  tbody.querySelectorAll('tr.cat-header').forEach(hdr => {
+    const c = hdr.dataset.cat;
+    const any = [...tbody.querySelectorAll('tr[data-cat-group]')].some(r => r.dataset.catGroup === c && r.style.display !== 'none');
+    hdr.style.display = any ? '' : 'none';
   });
 }
 
@@ -1443,8 +1531,10 @@ async function addLpRow() {
     document.getElementById('lp-empty-state').style.display = 'none';
     const tbody = document.getElementById('lp-tbody');
     tbody.appendChild(buildLpRow(newRow));
+    const newTr = tbody.lastElementChild;
+    newTr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     setStatus('ok', 'Fila creada');
-    tbody.lastElementChild?.querySelector('.lp-input.text')?.focus();
+    newTr?.querySelector('.lp-input.text')?.focus();
   } catch(e) {
     setStatus('error', 'Error: ' + e.message);
   }
