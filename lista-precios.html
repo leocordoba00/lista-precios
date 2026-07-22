@@ -1365,21 +1365,35 @@ async function confirmarAgregarStock() {
   const categoria = tr?.querySelector('[data-field="categoria"]')?.value || null;
   const cantidad = parseInt(document.getElementById('stock-cantidad').value) || 0;
   const costo = parseInt(document.getElementById('stock-costo').value) || null;
+  const x1 = parseInt(tr?.querySelector('[data-field="precio_x1"]')?.value) || null;
+  const x3 = parseInt(tr?.querySelector('[data-field="precio_x3"]')?.value) || null;
+  const x10 = parseInt(tr?.querySelector('[data-field="precio_x10"]')?.value) || null;
   if (cantidad <= 0) { alert('La cantidad debe ser mayor a 0'); return; }
   try {
     const existing = await api('GET', `${TABLE}?producto=eq.${encodeURIComponent(nombre)}&limit=1`);
     if (existing && existing.length > 0) {
       const row = existing[0];
       const nuevoStock = (row.cantidad || 0) + cantidad;
-      await api('PATCH', `${TABLE}?id=eq.${row.id}`, { cantidad: nuevoStock, precio_costo: costo || row.precio_costo });
+      await api('PATCH', `${TABLE}?id=eq.${row.id}`, {
+        cantidad: nuevoStock,
+        precio_costo: costo || row.precio_costo,
+        precio_local_fisico: x1 ?? row.precio_local_fisico,
+        precio_x3: x3 ?? row.precio_x3,
+        precio_x10: x10 ?? row.precio_x10
+      });
       const stockTr = document.querySelector(`#tbody tr[data-id="${row.id}"]`);
-      if (stockTr) stockTr.querySelector('[data-field="cantidad"]').value = nuevoStock;
+      if (stockTr) {
+        stockTr.querySelector('[data-field="cantidad"]').value = nuevoStock;
+        if (x1 != null) stockTr.querySelector('[data-field="precio_local_fisico"]').value = x1;
+        if (x3 != null) stockTr.querySelector('[data-field="precio_x3"]').value = x3;
+        if (x10 != null) stockTr.querySelector('[data-field="precio_x10"]').value = x10;
+      }
       setStatus('ok', `"${nombre}" — stock actualizado a ${nuevoStock}`);
     } else {
       await api('POST', TABLE, {
         producto: nombre, cantidad, precio_costo: costo,
-        precio_local_fisico: null,
-        precio_x3: null, precio_x10: null, color: null, categoria
+        precio_local_fisico: x1, precio_x3: x3, precio_x10: x10,
+        color: null, categoria
       });
       setStatus('ok', `"${nombre}" agregado al stock`);
     }
@@ -1515,6 +1529,24 @@ async function saveLpRow(id, btn) {
   });
   try {
     await api('PATCH', `${LP_TABLE}?id=eq.${id}`, data);
+    // Sincronizar precios al stock si el producto existe ahí
+    if (data.producto) {
+      const stockRows = await api('GET', `${TABLE}?producto=eq.${encodeURIComponent(data.producto)}&limit=1`);
+      if (stockRows && stockRows.length > 0) {
+        const sid = stockRows[0].id;
+        await api('PATCH', `${TABLE}?id=eq.${sid}`, {
+          precio_local_fisico: data.precio_x1 ?? null,
+          precio_x3: data.precio_x3 ?? null,
+          precio_x10: data.precio_x10 ?? null
+        });
+        const stockTr = document.querySelector(`#tbody tr[data-id="${sid}"]`);
+        if (stockTr) {
+          if (data.precio_x1 != null) stockTr.querySelector('[data-field="precio_local_fisico"]').value = data.precio_x1;
+          if (data.precio_x3 != null) stockTr.querySelector('[data-field="precio_x3"]').value = data.precio_x3;
+          if (data.precio_x10 != null) stockTr.querySelector('[data-field="precio_x10"]').value = data.precio_x10;
+        }
+      }
+    }
     btn.classList.remove('saving'); btn.textContent = '✓';
     setStatus('ok', 'Guardado');
   } catch(e) {
